@@ -1,0 +1,2 @@
+Content/NebulaWarrior/**/*.uasset filter=lfs diff=lfs merge=lfs -text
+Content/NebulaWarrior/**/*.umap filter=lfs diff=lfs merge=lfs -text
