@@ -34,23 +34,6 @@ public:
 		return (float)MissilesCount / (float)MissilesCapacity;
 	}
 
-	// Returns a remapped percent that accounts for transparent left padding in the bar image.
-	// Use this one to drive your UMG progress bar instead of GetEnergyPercent.
-	UFUNCTION(BlueprintPure, Category = "Missiles")
-	float GetVisualEnergyPercent() const
-	{
-		const float Offset = BarImageLeftPadding / BarImageTotalWidth;
-		return Offset + GetEnergyPercent() * (1.f - Offset);
-	}
-
-	// Total width in pixels of the progress bar image asset.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missiles|Bar")
-	float BarImageTotalWidth = 389.f;
-
-	// Pixels of transparent left padding before the visible bar starts.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missiles|Bar")
-	float BarImageLeftPadding = 130.f;
-
 	// Total missiles before recharge is required.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missiles")
 	int32 MissilesCapacity = 33;
