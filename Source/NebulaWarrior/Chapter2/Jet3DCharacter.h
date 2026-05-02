@@ -24,7 +24,7 @@ protected:
 
 public:	
 	//StaticMeshComponent
-	UPROPERTY(VisibleAnywhere, Category = "Mesh")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	class UStaticMeshComponent* JetStaticMesh;
 	//CameraComponent
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
@@ -68,7 +68,7 @@ public:
 	void FirePrimaryLock();
 	void FireSecondary();
 	void Look(const FInputActionValue& Value);
-	void MoveForward(const FInputActionValue& Value);
+	void MoveUp(const FInputActionValue& Value);
 	void MoveRight(const FInputActionValue& Value);
 
 	//BlueprintCallable Functions mirroring Input Functions for use in Blueprints
@@ -88,7 +88,7 @@ public:
 	void Look_BP(const FInputActionValue& Value);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Input")
-	void MoveForward_BP(const FInputActionValue& Value);
+	void MoveUp_BP(const FInputActionValue& Value);
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Input")
 	void MoveRight_BP(const FInputActionValue& Value);
@@ -103,14 +103,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path")
 	float SplineSpeed = 1500.0f;
 
-private:
-	// Current distance travelled along the spline
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path")
 	float SplineDistance = 0.0f;
 
-	// Spline rotation from the previous tick — used to isolate input-driven rotation delta
+private:
+	// Spline rotation from the previous tick
 	FRotator PreviousSplineRotation = FRotator::ZeroRotator;
-
-	// Accumulated input offset in the spline's local space (Up/Right axes), applied on top of spline position
-	FVector2D InputOffset = FVector2D::ZeroVector;
 
 };

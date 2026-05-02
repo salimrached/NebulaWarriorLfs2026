@@ -16,11 +16,9 @@ AJet3DCharacter::AJet3DCharacter()
 	PrimaryActorTick.bCanEverTick = true;
 	// Set default movement mode to Flying
 	GetCharacterMovement()->DefaultLandMovementMode = MOVE_Flying;
-	// Disable CMC's own position updates — spline drives location directly
-	GetCharacterMovement()->SetMovementMode(MOVE_None);
-	// Allow the controller rotation to drive all three axes on the actor
-	bUseControllerRotationYaw   = false;
-	bUseControllerRotationPitch = false;
+	// Controller rotation drives yaw and pitch — spline feeds deltas, Look input stacks on top
+	bUseControllerRotationYaw   = true;
+	bUseControllerRotationPitch = true;
 	bUseControllerRotationRoll  = false;
 	//StaticMeshComponent
 	JetStaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("JetStaticMesh"));
@@ -56,7 +54,7 @@ void AJet3DCharacter::BeginPlay()
 void AJet3DCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	MoveAlongSpline(DeltaTime);
+	//MoveAlongSpline(DeltaTime);
 }
 
 // SetupPlayerInputComponent
@@ -68,7 +66,7 @@ void AJet3DCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 	{
 		// Boost
 		if (IA_Boost)
-			EIC->BindAction(IA_Boost, ETriggerEvent::Started, this, &AJet3DCharacter::Boost);
+			EIC->BindAction(IA_Boost, ETriggerEvent::Triggered, this, &AJet3DCharacter::Boost);
 
 		// Fire Primary
 		if (IA_Fire_Primary)
@@ -80,15 +78,15 @@ void AJet3DCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComp
 
 		// Fire Secondary
 		if (IA_Fire_Secondary)
-			EIC->BindAction(IA_Fire_Secondary, ETriggerEvent::Triggered, this, &AJet3DCharacter::FireSecondary);
+			EIC->BindAction(IA_Fire_Secondary, ETriggerEvent::Started, this, &AJet3DCharacter::FireSecondary);
 
 		// Look
 		if (IA_Look)
 			EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AJet3DCharacter::Look);
 
-		// Move Forward
+		// Move Up
 		if (IA_MoveForward)
-			EIC->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &AJet3DCharacter::MoveForward);
+			EIC->BindAction(IA_MoveForward, ETriggerEvent::Triggered, this, &AJet3DCharacter::MoveUp);
 
 		// Move Right
 		if (IA_MoveRight)
@@ -124,24 +122,20 @@ void AJet3DCharacter::FireSecondary()
 void AJet3DCharacter::Look(const FInputActionValue& Value)
 {
 	const FVector2D LookAxis = Value.Get<FVector2D>();
-	AddControllerYawInput(LookAxis.X);
-	AddControllerPitchInput(LookAxis.Y);
+	//AddControllerYawInput(LookAxis.X);
+	//AddControllerPitchInput(-LookAxis.Y);
 	Look_BP(LookAxis);
 }
 
-// MoveForward
-void AJet3DCharacter::MoveForward(const FInputActionValue& Value)
+// MoveUp
+void AJet3DCharacter::MoveUp(const FInputActionValue& Value)
 {
-	const float AxisValue = Value.Get<float>();
-	InputOffset.Y += AxisValue;
-	MoveForward_BP(Value);
+	MoveUp_BP(Value);
 }
 
 // MoveRight
 void AJet3DCharacter::MoveRight(const FInputActionValue& Value)
 {
-	const float AxisValue = Value.Get<float>();
-	InputOffset.X += AxisValue;
 	MoveRight_BP(Value);
 }
 
@@ -165,26 +159,17 @@ void AJet3DCharacter::MoveAlongSpline(float DeltaTime)
 		return;
 	}
 
-	// Advance distance along the spline
+	// Advance distance along the spline (mirrors Blueprint: SplineDistance + SplineSpeed * DeltaSeconds)
 	const float SplineLength = SplinePathComponent->GetSplineLength();
 	SplineDistance = FMath::Fmod(SplineDistance + SplineSpeed * DeltaTime, SplineLength);
 
-	// Get the spline's world-space axes at the current distance
-	const FVector SplineLocation = SplinePathComponent->GetLocationAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
-	const FVector SplineRight    = SplinePathComponent->GetRightVectorAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
-	const FVector SplineUp       = SplinePathComponent->GetUpVectorAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
+	// Set location (mirrors Blueprint: GetLocationAtDistanceAlongSpline → SetActorLocation)
+	const FVector NewLocation = SplinePathComponent->GetLocationAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
+	SetActorLocation(NewLocation);
 
-	// Snap actor to spline position + accumulated input offset along the spline's own Right and Up axes
-	const FVector FinalLocation = SplineLocation
-		+ SplineRight * InputOffset.X
-		+ SplineUp    * InputOffset.Y;
-
-	SetActorLocation(FinalLocation, true);
-
-	// Rotation: snap to spline Yaw and Pitch, leave Roll at zero
-	const FRotator CurrentSplineRotation = SplinePathComponent->GetRotationAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
-	SetActorRotation(FRotator(CurrentSplineRotation.Pitch, CurrentSplineRotation.Yaw, 0.0f));
-	PreviousSplineRotation = CurrentSplineRotation;
+	// Set rotation (mirrors Blueprint: GetRotationAtDistanceAlongSpline → SetActorRotation)
+	const FRotator NewRotation = SplinePathComponent->GetRotationAtDistanceAlongSpline(SplineDistance, ESplineCoordinateSpace::World);
+	SetActorRotation(NewRotation);
 }
 
 
