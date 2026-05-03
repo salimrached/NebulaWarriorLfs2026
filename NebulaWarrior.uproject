@@ -24,6 +24,10 @@
 		{
 			"Name": "PCG",
 			"Enabled": true
+		},
+		{
+			"Name": "rdSplineTools",
+			"Enabled": true
 		}
 	]
 }
