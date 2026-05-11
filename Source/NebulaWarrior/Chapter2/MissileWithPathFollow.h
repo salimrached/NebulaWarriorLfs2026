@@ -6,6 +6,14 @@
 #include "GameFramework/Actor.h"
 #include "MissileWithPathFollow.generated.h"
 
+UENUM(BlueprintType)
+enum class EMissileMode : uint8
+{
+	FreeFlight    UMETA(DisplayName = "Free Flight"),
+	PathFollow    UMETA(DisplayName = "Path Follow"),
+	TargetFollow  UMETA(DisplayName = "Target Follow")
+};
+
 UCLASS()
 class NEBULAWARRIOR_API AMissileWithPathFollow : public AActor
 {
@@ -19,6 +27,14 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
+	// Missile mode - set in Blueprint BeginPlay to drive the Switch on EMissileMode logic
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Missile")
+	EMissileMode MissileMode = EMissileMode::FreeFlight;
+
+	// Sets MissileMode to a random value from the EMissileMode enum
+	UFUNCTION(BlueprintCallable, Category = "Missile")
+	void SetRandomMissileMode();
+
 	// SplinePathComponent - set from Blueprint on BeginPlay
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path")
 	class USplineComponent* SplinePathComponent;
@@ -27,7 +43,11 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Collision")
 	class USphereComponent* SphereCollisionComponent;
 
-	// When true the missile follows the spline; false = free flight
+	// --- Option 1: Straight Flight -> Path Follow ---
+	// Set bFollowSpline = true, bFollowTarget = false
+
+	// When true the missile transitions to spline follow after free flight
+	// Mutually exclusive with bFollowTarget
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path")
 	bool bFollowSpline = false;
 
@@ -51,26 +71,25 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreeFlight")
 	float FreeFlightSpeed = 24000.0f;
 
-	// How long the missile flies freely before blending (0 = instant spline follow)
+	// How long the missile flies freely before transitioning (0 = instant transition)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreeFlight")
 	float FreeFlightDuration = 1.0f;
 
-	// How long the lerp transition from free flight to spline follow lasts
+	// How long the lerp transition from free flight to spline follow lasts (Option 1 only)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "FreeFlight")
 	float BlendDuration = 1.0f;
 
-	// How long the missile follows the spline before locking onto a target (Phase 3)
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Path")
-	float SplineFollowDuration = 1.0f;
+	// --- Option 2: Straight Flight -> Target Follow ---
+	// Set bFollowTarget = true, bFollowSpline = false
 
-	// Target Follow (Phase 4)
 	// Array of potential targets - set from Blueprint (e.g. GetAllActorsOfClass)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TargetFollow")
 	TArray<AActor*> TargetActors;
 
-	// When true the missile will lock onto the closest target after SplineFollowDuration
+	// When true the missile transitions to target follow after free flight
+	// Mutually exclusive with bFollowSpline
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TargetFollow")
-	bool bFollowTarget = true;
+	bool bFollowTarget = false;
 
 	// Speed at which the missile moves toward the locked target (units/sec)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TargetFollow")
@@ -80,7 +99,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "TargetFollow")
 	float TargetTurnSpeed = 5.0f;
 
-	// The locked target selected at the start of Phase 4 (closest from TargetActors)
+	// The randomly selected locked target (set at start of target follow phase)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "TargetFollow")
 	AActor* LockedTarget = nullptr;
 
@@ -90,6 +109,9 @@ private:
 
 	// Accumulates time since spawn to drive phase transitions
 	float ElapsedTime = 0.0f;
+
+	// Guards InitializeSplineFollow so it only runs once
+	bool bSplineInitialized = false;
 
 	// Seeds SplineDistance to the nearest point and captures Y/Z offsets
 	void InitializeSplineFollow();

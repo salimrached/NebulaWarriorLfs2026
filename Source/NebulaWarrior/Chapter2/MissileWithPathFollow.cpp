@@ -15,6 +15,13 @@ AMissileWithPathFollow::AMissileWithPathFollow()
 
 }
 
+// SetRandomMissileMode
+void AMissileWithPathFollow::SetRandomMissileMode()
+{
+	const int32 MaxIndex = static_cast<int32>(EMissileMode::TargetFollow);
+	MissileMode = static_cast<EMissileMode>(FMath::RandRange(0, MaxIndex));
+}
+
 // BeginPlay
 void AMissileWithPathFollow::BeginPlay()
 {
@@ -33,49 +40,57 @@ void AMissileWithPathFollow::Tick(float DeltaTime)
 
 	ElapsedTime += DeltaTime;
 
-	// Phase 1 - Free Flight
+	// --- Option 3: Straight Missile (bFollowSpline = false, bFollowTarget = false) ---
+	// Free flight only, missile dies at lifespan
+
+	// Phase 1 - Free Flight (all options)
 	if (ElapsedTime < FreeFlightDuration)
 	{
 		TickFreeFlight(DeltaTime);
 		return;
 	}
 
-	// Transition into blend: initialize spline on the first tick after free flight ends
-	if (!bFollowSpline && SplinePathComponent)
+	// --- Option 1: Straight Flight -> Path Follow ---
+	if (bFollowSpline)
 	{
-		InitializeSplineFollow();
-		bFollowSpline = true;
-	}
+		// Initialize spline on the first tick after free flight ends
+		if (!bSplineInitialized && SplinePathComponent)
+		{
+			InitializeSplineFollow();
+			bSplineInitialized = true;
+		}
 
-	// Phase 2 - Blend
-	if (ElapsedTime < FreeFlightDuration + BlendDuration)
-	{
-		TickBlend(DeltaTime);
-		return;
-	}
+		// Phase 2 - Blend into spline
+		if (ElapsedTime < FreeFlightDuration + BlendDuration)
+		{
+			TickBlend(DeltaTime);
+			return;
+		}
 
-	// Phase 3 - Pure Spline Follow
-	if (ElapsedTime < FreeFlightDuration + BlendDuration + SplineFollowDuration)
-	{
+		// Phase 3 - Pure Spline Follow (runs until lifespan)
 		TickSplineFollow(DeltaTime);
 		return;
 	}
 
-	// Transition into target follow: pick closest target on the first tick after Phase 3 ends
-	if (bFollowTarget && LockedTarget == nullptr)
+	// --- Option 2: Straight Flight -> Target Follow ---
+	if (bFollowTarget)
 	{
-		InitializeTargetFollow();
+		// Pick a random target on the first tick after free flight ends
+		if (LockedTarget == nullptr)
+		{
+			InitializeTargetFollow();
+		}
+
+		// Phase 2 - Target Follow (runs until lifespan)
+		if (LockedTarget)
+		{
+			TickTargetFollow(DeltaTime);
+			return;
+		}
 	}
 
-	// Phase 4 - Target Follow
-	if (bFollowTarget && LockedTarget)
-	{
-		TickTargetFollow(DeltaTime);
-		return;
-	}
-
-	// Fallback: keep following spline if target follow is disabled or no target was found
-	TickSplineFollow(DeltaTime);
+	// Fallback: keep flying straight if no target was found or both bools are false
+	TickFreeFlight(DeltaTime);
 }
 
 // TickFreeFlight - Phase 1: move along the missile's initial forward vector
@@ -163,7 +178,7 @@ void AMissileWithPathFollow::TickSplineFollow(float DeltaTime)
 	SetActorRotation(SplineRot);
 }
 
-// InitializeTargetFollow - picks the farthest actor from TargetActors and locks onto it
+// InitializeTargetFollow - picks a random actor from TargetActors and locks onto it
 void AMissileWithPathFollow::InitializeTargetFollow()
 {
 	if (TargetActors.Num() == 0)
@@ -171,36 +186,33 @@ void AMissileWithPathFollow::InitializeTargetFollow()
 		return;
 	}
 
-	const FVector MissileLocation = GetActorLocation();
-	AActor* Farthest = nullptr;
-	float FarthestDistSq = -1.0f;
-
+	// Collect valid (non-destroyed) candidates first
+	TArray<AActor*> ValidTargets;
 	for (AActor* Candidate : TargetActors)
 	{
-		if (!IsValid(Candidate))
+		if (IsValid(Candidate))
 		{
-			continue;
-		}
-
-		const float DistSq = FVector::DistSquared(MissileLocation, Candidate->GetActorLocation());
-		if (DistSq > FarthestDistSq)
-		{
-			FarthestDistSq = DistSq;
-			Farthest = Candidate;
+			ValidTargets.Add(Candidate);
 		}
 	}
 
-	LockedTarget = Farthest;
+	if (ValidTargets.Num() == 0)
+	{
+		return;
+	}
+
+	const int32 RandomIndex = FMath::RandRange(0, ValidTargets.Num() - 1);
+	LockedTarget = ValidTargets[RandomIndex];
 }
 
-// TickTargetFollow - Phase 4: home in on the locked target
+// TickTargetFollow - Option 2: home in on the locked target
 void AMissileWithPathFollow::TickTargetFollow(float DeltaTime)
 {
-	// If the target was destroyed mid-flight, fall back to spline
+	// If the target was destroyed mid-flight, keep flying straight
 	if (!IsValid(LockedTarget))
 	{
 		LockedTarget = nullptr;
-		TickSplineFollow(DeltaTime);
+		TickFreeFlight(DeltaTime);
 		return;
 	}
 
