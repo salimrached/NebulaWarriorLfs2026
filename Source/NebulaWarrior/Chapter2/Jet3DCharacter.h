@@ -97,6 +97,7 @@ public:
 	//Receives a spline actor and its spline component from Blueprint and caches the spline for path movement
 	UFUNCTION(BlueprintCallable, Category = "Path")
 	void InitializeSplinePath(AActor* PathActor, USplineComponent* InSplineComponent);
+	UFUNCTION(BlueprintCallable, Category = "Path")
 	void MoveAlongSpline(float DeltaTime);
 
 	// How fast the jet travels along the spline (units/sec)
