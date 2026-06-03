@@ -9,6 +9,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Components/BoxComponent.h"
 
 // Constructor
 AJet3DCharacter::AJet3DCharacter()
@@ -20,9 +21,12 @@ AJet3DCharacter::AJet3DCharacter()
 	bUseControllerRotationYaw   = true;
 	bUseControllerRotationPitch = true;
 	bUseControllerRotationRoll  = false;
+	//BoxCollisionComponent
+	BoxCollisionComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxCollisionComponent"));
+	BoxCollisionComponent->SetupAttachment(RootComponent);
 	//StaticMeshComponent
 	JetStaticMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("JetStaticMesh"));
-	JetStaticMesh->SetupAttachment(RootComponent);
+	JetStaticMesh->SetupAttachment(BoxCollisionComponent);
 	//SpringArmComponent
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComponent"));
 	SpringArmComponent->SetupAttachment(RootComponent);

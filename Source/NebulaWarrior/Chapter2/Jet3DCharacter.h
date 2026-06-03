@@ -8,6 +8,7 @@
 
 struct FInputActionValue;
 class USplineComponent;
+class UBoxComponent;
 
 UCLASS()
 class NEBULAWARRIOR_API AJet3DCharacter : public ACharacter
@@ -23,6 +24,9 @@ protected:
 	virtual void BeginPlay() override;
 
 public:	
+	// BoxCollisionComponent
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
+	class UBoxComponent* BoxCollisionComponent	;
 	//StaticMeshComponent
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Mesh")
 	class UStaticMeshComponent* JetStaticMesh;
